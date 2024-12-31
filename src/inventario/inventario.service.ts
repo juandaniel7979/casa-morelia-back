@@ -25,24 +25,6 @@ export class InventarioService {
     return producto;
   }
 
-  // Crear un producto individual
-  async create(item: { nombre: string; cantidad: number; precio: number }): Promise<Inventario> {
-    const existingItem = await this.inventarioRepository.findOne({
-      where: { nombre: item.nombre }, // Cambia según tu campo único
-    });
-  
-    if (existingItem) {
-      throw new ConflictException('El item ya está registrado');
-    }
-  
-    try{
-      const newItem = this.inventarioRepository.create(item);
-      return this.inventarioRepository.save(newItem);
-    }catch(err){
-      console.error(err);
-    }
-  }
-
   // Actualizar un producto existente
   async update(id: number, item: { nombre: string; cantidad: number; precio: number }): Promise<Inventario> {
     const producto = await this.findOne(id); // Lanza una excepción si no se encuentra
@@ -50,27 +32,44 @@ export class InventarioService {
     return this.inventarioRepository.save(updatedProducto);
   }
 
-  // Crear productos masivamente
-  // async createBulk(items: Array<{ nombre: string; cantidad: number; precio: number }>): Promise<Inventario[]> {
-  //    // Validar duplicados en paralelo
-  //   const validations = items.map(async (item) => {
-  //     const exists = await this.inventarioRepository.findOne({ where: { nombre: item.nombre } });
-  //     if (exists) {
-  //       throw new ConflictException(`El item "${item}" ya existe.`);
-  //     }
-  //     return item;
-  //   });
-  //   try {
-  //     await Promise.all(validations);
-  //   } catch (error) {
-  //     throw new ConflictException('No se puede guardar. Algunos elementos ya existen.', error);
-  //   }
-  //   const savedItems = await Promise.all(
-  //     items.map((item) => this.inventarioRepository.save({ nombre: item.nombre })),
-  //   );
+  // Crear un producto individual
+  async create(item: { nombre: string; cantidad: number; precio: number }): Promise<Inventario> {
+    try {
+      const existingItem = await this.inventarioRepository.findOneBy({ nombre: item.nombre }); // Cambia según tu campo único);
+      console.log('existingItem', existingItem);
+      if (existingItem) {
+        throw new ConflictException(`El item ya está registrado ${existingItem}`);
+      }
+      const newItem = this.inventarioRepository.create(item);
+      return this.inventarioRepository.save(newItem);
+    } catch (error) {
+      throw new ConflictException('No se puede guardar el item', error);
+    }
+  }
 
-  //   return savedItems;
-  // }
+
+  
+  // Crear productos masivamente
+  async createBulk(items: Array<{ nombre: string; cantidad: number; precio: number }>): Promise<Inventario[]> {
+     // Validar duplicados en paralelo
+    const validations = items.map(async (item) => {
+      const exists = await this.inventarioRepository.findOneBy( { nombre: item.nombre });
+      if (exists) {
+        throw new ConflictException(`El item "${item}" ya existe.`);
+      }
+      return item;
+    });
+    try {
+      await Promise.all(validations);
+    } catch (error) {
+      throw new ConflictException('No se puede guardar. Algunos elementos ya existen.', error);
+    }
+    const savedItems = await Promise.all(
+      items.map((item) => this.inventarioRepository.save(item)),
+    );
+
+    return savedItems;
+  }
 
 
 }
